@@ -1,10 +1,67 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function FloatingChatbot() {
   const [open, setOpen] = useState(false);
+  const [message, setMessage] = useState("");
+  const [chat, setChat] = useState([
+    {
+      role: "assistant",
+      content: "Halo 👋 Ada yang bisa kami bantu mengenai layanan WIM Motor?",
+    },
+  ]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const chatEndRef = useRef(null);
+
+  useEffect(() => {
+    if (open) {
+      chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [chat, open]);
+
+  const sendMessage = async () => {
+    const trimmedMessage = message.trim();
+    if (!trimmedMessage) return;
+
+    // Hitung apakah ini pesan pertama dari user (bukan counting greeting assistant)
+    const userMessageCount = chat.filter((msg) => msg.role === "user").length;
+    const isFirstMessage = userMessageCount === 0;
+
+    setChat((prev) => [...prev, { role: "user", content: trimmedMessage }]);
+    setMessage("");
+    setLoading(true);
+    setError("");
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: trimmedMessage, isFirstMessage }),
+      });
+      const data = await res.json();
+
+      if (!data.success) {
+        throw new Error(data.message || "Terjadi kesalahan chat");
+      }
+
+      setChat((prev) => [...prev, { role: "assistant", content: data.reply }]);
+    } catch (err) {
+      setError(err?.message || "Gagal mengirim pesan. Coba lagi.");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleKeyDown = (event) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      sendMessage();
+    }
+  };
 
   return (
     <>
@@ -42,23 +99,22 @@ export default function FloatingChatbot() {
 
             {/* CHAT BODY */}
             <div className="p-5 h-[350px] overflow-y-auto space-y-4">
-
-              <div className="bg-white/5 border border-white/10 rounded-2xl p-4 w-fit max-w-[85%]">
-                Halo 👋
-                <br />
-                Ada yang bisa kami bantu?
-              </div>
-
-              <div className="bg-red-600 rounded-2xl p-4 w-fit max-w-[85%] ml-auto">
-                Saya ingin booking servis
-              </div>
-
-              <div className="bg-white/5 border border-white/10 rounded-2xl p-4 w-fit max-w-[85%]">
-                Baik 🔥
-                <br />
-                Silakan pilih tanggal booking.
-              </div>
-
+              {chat.map((item, index) => {
+                const isUser = item.role === "user";
+                return (
+                  <div
+                    key={index}
+                    className={`rounded-2xl p-4 max-w-[85%] ${
+                      isUser
+                        ? "bg-red-600 text-white ml-auto"
+                        : "bg-white/5 border border-white/10 text-white"
+                    }`}
+                  >
+                    {item.content}
+                  </div>
+                );
+              })}
+              <div ref={chatEndRef} />
             </div>
 
             {/* INPUT */}
@@ -66,12 +122,19 @@ export default function FloatingChatbot() {
               
               <input
                 type="text"
+                value={message}
+                onChange={(event) => setMessage(event.target.value)}
+                onKeyDown={handleKeyDown}
                 placeholder="Tulis pesan..."
                 className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-4 py-3 outline-none focus:border-red-500"
               />
 
-              <button className="bg-red-600 hover:bg-red-700 transition px-5 rounded-2xl font-semibold">
-                Kirim
+              <button
+                onClick={sendMessage}
+                disabled={loading}
+                className="bg-red-600 hover:bg-red-700 transition px-5 rounded-2xl font-semibold disabled:cursor-not-allowed disabled:bg-red-500"
+              >
+                {loading ? "Kirim..." : "Kirim"}
               </button>
 
             </div>
