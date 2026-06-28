@@ -22,7 +22,6 @@ export async function POST(req) {
       return Response.json({ success: false, message: "Message is required" }, { status: 400 });
     }
 
-    // Deteksi sapaan di pesan pertama
     const greetingKeywords = /^(halo|hai|assalamu|pagi|siang|malam|sore|permisi|boleh|selamat|hi|hello)/i;
     if (isFirstMessage && greetingKeywords.test(message.trim())) {
       return Response.json({
@@ -35,9 +34,13 @@ export async function POST(req) {
     const userId = cookieStore.get("userId")?.value || null;
 
     const connection = await db.getConnection();
-    const [services] = await connection.execute(
-      "SELECT id, service_name, description FROM services ORDER BY id"
+    const [servicesRaw] = await connection.execute(
+      "SELECT id, name, service_name, description FROM services ORDER BY id"
     );
+    const services = (servicesRaw || []).map((service) => ({
+      ...service,
+      name: service.name || service.service_name || "Layanan",
+    }));
     const [products] = await connection.execute(
       "SELECT id, name, description, price, stock FROM products ORDER BY id"
     );
@@ -146,8 +149,7 @@ Setelah JSON, berikan penjelasan singkat kepada pengguna.
         return Response.json(
           {
             success: true,
-            reply:
-              "Silakan login dulu agar saya bisa membuat booking untuk Anda melalui chatbot.",
+            reply: "Silakan login dulu agar saya bisa membuat booking untuk Anda melalui chatbot.",
           },
           { status: 200 }
         );
@@ -196,7 +198,7 @@ Setelah JSON, berikan penjelasan singkat kepada pengguna.
 
         return Response.json({
           success: true,
-          reply: `Booking untuk layanan ${service.name} pada ${bookingDate} berhasil dibuat. ID booking: ${result.insertId}.`, 
+          reply: `Booking untuk layanan ${service.name} pada ${bookingDate} berhasil dibuat. ID booking: ${result.insertId}.`,
           booking_id: result.insertId,
         });
       } catch (error) {

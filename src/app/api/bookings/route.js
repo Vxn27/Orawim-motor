@@ -1,18 +1,27 @@
+import { cookies } from "next/headers";
 import db from "@/lib/db";
 
 export async function POST(req) {
   try {
-    const formData = await req.formData();
-    
-    const name = formData.get("name");
-    const phone = formData.get("phone");
-    const service_id = formData.get("service_id");
-    const booking_date = formData.get("booking_date");
-    const complaint = formData.get("complaint");
-    const down_payment = formData.get("down_payment");
-    const file = formData.get("file");
+    const contentType = req.headers.get("content-type") || "";
+    let payload = {};
 
-    // Validation
+    if (contentType.includes("application/json")) {
+      payload = await req.json();
+    } else {
+      const formData = await req.formData();
+      payload = Object.fromEntries(formData.entries());
+    }
+
+    const name = payload.name || payload.nama || "";
+    const phone = payload.phone || "";
+    const service_id = payload.service_id || payload.serviceId || "";
+    const booking_date = payload.booking_date || payload.bookingDate || "";
+    const complaint = payload.complaint || payload.keluhan || "";
+    const payment_method = payload.payment_method || payload.paymentMethod || "";
+    const down_payment = payload.down_payment || payload.downpayment || 25000;
+    const user_id = payload.user_id || payload.userId || (await cookies()).get("userId")?.value || null;
+
     if (!name || !phone || !service_id || !booking_date || !complaint) {
       return Response.json(
         { success: false, message: "Semua field harus diisi" },
@@ -20,9 +29,6 @@ export async function POST(req) {
       );
     }
 
-    // Get user_id from session or auth header
-    // For now, we'll assume user_id is sent in the request
-    const user_id = formData.get("user_id");
     if (!user_id) {
       return Response.json(
         { success: false, message: "User tidak terautentikasi" },
@@ -33,9 +39,8 @@ export async function POST(req) {
     const connection = await db.getConnection();
 
     try {
-      // Insert booking
       const [result] = await connection.execute(
-        `INSERT INTO bookings
+        `INSERT INTO booking
         (user_id, service_id, booking_date, complaint, down_payment, status)
         VALUES (?, ?, ?, ?, ?, ?)`,
         [
@@ -43,7 +48,7 @@ export async function POST(req) {
           service_id,
           booking_date,
           complaint,
-          down_payment || 0,
+          down_payment || 25000,
           "pending",
         ]
       );

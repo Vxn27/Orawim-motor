@@ -249,10 +249,9 @@ export default function ProductDetailPage() {
               </h2>
 
               {/* DESC */}
-              <p className="text-gray-400 leading-relaxed mt-6">
-                {product.description ||
-                  "Produk premium dengan kualitas terbaik, tahan lama, dan memberikan performa optimal untuk motor Anda."}
-              </p>
+              <div className="mt-6 whitespace-pre-line leading-8 text-gray-400">
+                {product.description}
+              </div>
 
               {/* STOCK INFO */}
               <div className="mt-8 p-4 bg-white/5 border border-white/10 rounded-xl">
